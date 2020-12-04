@@ -1,7 +1,8 @@
 import alpaca_trade_api as tradeapi
+from datetime import date, datetime, timedelta
 import requests
 import time
-from ta import macd
+from ta.trend import macd
 import numpy as np
 from datetime import datetime, timedelta
 from pytz import timezone
@@ -34,10 +35,15 @@ def get_1000m_history_data(symbols):
     print('Getting historical data...')
     minute_history = {}
     c = 0
+    today = date.today()
+    yesterday = date.today() - timedelta(days=1)
+    
     for symbol in symbols:
-        minute_history[symbol] = api.polygon.historic_agg(
-            size="minute", symbol=symbol, limit=1000
+        minute_history[symbol] = api.polygon.historic_agg_v2(
+            timespan="minute", symbol=symbol, limit=1000, multiplier=1, _from=yesterday.strftime("%Y-%m-%d"), to=today.strftime("%Y-%m-%d")
         ).df
+        if 'vwap' in minute_history[symbol]:
+             minute_history[symbol].drop('vwap', axis=1, inplace=True)
         c += 1
         print('{}/{}'.format(c, len(symbols)))
     print('Success.')
@@ -72,7 +78,7 @@ def find_stop(current_value, minute_history, now):
 
 def run(tickers, market_open_dt, market_close_dt):
     # Establish streaming connection
-    conn = tradeapi.StreamConn(base_url=base_url, key_id=api_key_id, secret_key=api_secret)
+    conn = tradeapi.StreamConn(base_url=base_url, key_id=api_key_id, secret_key=api_secret,data_stream='polygon')
 
     # Update initial state with information from tickers
     volume_today = {}
